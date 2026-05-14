@@ -11,6 +11,9 @@ from karaoke_player.infra.file_scanner import (
 )
 from karaoke_player.infra.lrc_parser import parse_lrc_file
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+COVER_NAMES = ("cover", "folder", "image", "poster", "album", "обложка", "картинка")
+
 
 class SongLoader:
     def load_song(self, audio_path: Path, title: str | None = None) -> Song:
@@ -30,6 +33,8 @@ class SongLoader:
             title=title or audio_path.stem,
             audio_path=audio_path,
             lyrics_path=lyrics_path,
+            cover_path=self._find_cover(audio_path.parent, audio_path.stem),
+            notes_path=self._find_notes(audio_path.parent, audio_path.stem),
             lyrics=lyrics,
         )
 
@@ -58,6 +63,8 @@ class SongLoader:
             title=song_dir.name,
             audio_path=audio_path,
             lyrics_path=lyrics_path,
+            cover_path=self._find_cover(song_dir, audio_path.stem),
+            notes_path=self._find_notes(song_dir, audio_path.stem),
             lyrics=lyrics,
         )
 
@@ -93,3 +100,37 @@ class SongLoader:
         if not songs:
             raise SongLoadError("Не выбрано ни одной песни.")
         return songs
+
+    @staticmethod
+    def _find_cover(folder: Path, audio_stem: str) -> Path | None:
+        exact = [folder / f"{audio_stem}{ext}" for ext in IMAGE_EXTENSIONS]
+        for path in exact:
+            if path.exists() and path.is_file():
+                return path
+
+        image_files = sorted(
+            [
+                path
+                for path in folder.iterdir()
+                if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+            ],
+            key=lambda path: path.name.lower(),
+        )
+
+        for preferred_name in COVER_NAMES:
+            for path in image_files:
+                if path.stem.lower() == preferred_name:
+                    return path
+
+        return image_files[0] if image_files else None
+
+    @staticmethod
+    def _find_notes(folder: Path, audio_stem: str) -> Path | None:
+        exact = folder / f"{audio_stem}.notes"
+
+        if exact.exists() and exact.is_file():
+            return exact
+
+        notes_files = sorted(folder.glob("*.notes"), key=lambda path: path.name.lower())
+
+        return notes_files[0] if notes_files else None

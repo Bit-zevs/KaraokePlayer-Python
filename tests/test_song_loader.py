@@ -25,3 +25,15 @@ def test_load_folder_returns_supported_audio_files(tmp_path: Path) -> None:
     songs = SongLoader().load_folder(tmp_path)
 
     assert [song.title for song in songs] == ["a", "b"]
+
+def test_find_cover(tmp_path: Path):
+    song_dir = tmp_path / "song"
+    song_dir.mkdir()
+
+    cover = song_dir / "cover.jpg"
+    cover.write_bytes(b"fake")
+
+    result = SongLoader._find_cover(song_dir, "track")
+
+    assert result is not None
+    assert result.name == "cover.jpg"
